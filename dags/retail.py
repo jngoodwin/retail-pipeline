@@ -8,6 +8,7 @@ from astro.files import File
 from astro.sql.table import Table, Metadata
 from astro.constants import FileType
 
+# Dag details for executing the pipeline
 @dag(
     start_date=datetime(2023, 1, 1),
     schedule=None,
@@ -16,6 +17,8 @@ from astro.constants import FileType
 )
 def retail():
 
+    # Loads the CSV data file to remote Google Cloud service
+    # using Buckets. Source file needs to be encoded as UTF-8
     upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         task_id='upload_csv_to_gcs',
         src='include/dataset/online_retail.csv',
@@ -25,12 +28,16 @@ def retail():
         mime_type='text/csv',
     )
 
+    # Creates an empty Big Query Dataset on Google cloud.
+    # This is where the table will be loaded
     create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id='create_retail_dataset',
         dataset_id='retail',
         gcp_conn_id='gcp',
     )
 
+    # Loads data from Bucket on Google Cloud into a table based on
+    # the schema of the stored CSV file in the bucket
     gcs_to_raw = aql.load_file(
         task_id='gcs_to_raw',
         input_file=File(
